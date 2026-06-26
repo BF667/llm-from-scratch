@@ -28,7 +28,11 @@ from transformers import (
 from .config import build_config, estimate_params, SIZE_PRESETS
 from .model_gpt2 import GPTScratchConfig, GPTScratchForCausalLM
 from .model_llama import LlamaScratchConfig, LlamaScratchForCausalLM
-from .dataset import build_tokenizer, load_wikitext_dataset
+from .dataset import (
+    build_tokenizer,
+    load_wikitext_dataset,
+    load_custom_dataset,
+)
 
 logger = logging.getLogger("llm_scratch.train")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -99,11 +103,15 @@ def run_training(
     max_steps: Optional[int] = None,
     num_proc: Optional[int] = None,
     resume_from_checkpoint: Optional[str] = None,
+    dataset: str = "wikitext",
+    dataset_source: Optional[str] = None,
+    text_field: str = "text",
     **overrides,
 ) -> str:
     """Run end-to-end training. Returns the output_dir.
 
-    Train the selected arch + size on WikiText-103. Returns the output dir.
+    Train the selected arch + size on WikiText-103 (default) or a custom
+    dataset. Returns the output dir.
 
     Args:
         resume_from_checkpoint:
@@ -113,10 +121,26 @@ def run_training(
               step counter, RNG all restored). If no checkpoint exists, falls
               back to from-scratch training with a warning.
             - a path → resume from that specific checkpoint directory.
+        dataset:
+            - "wikitext" → use WikiText-103 (default).
+            - "custom"   → use `dataset_source` (see below).
+        dataset_source:
+            Required when `dataset="custom"`. Can be:
+              - Path to a local `.txt` / `.json` / `.jsonl` / `.csv` / `.tsv` file
+              - HuggingFace Hub dataset name (e.g. "imdb",
+                "roneneldan/TinyStories")
+              - URL (http/https) to a `.txt` file
+              - dict of {split: datasets.Dataset}
+        text_field:
+            Column name that holds the raw text in a custom dataset
+            (default "text"; for IMDb/TinyStories this is also "text").
 
-            在 WikiText-103 上训练所选架构 + 尺寸的模型，返回输出目录。
+            在 WikiText-103（默认）或自定义数据集上训练所选架构 + 尺寸的模型，
+            返回输出目录。
             resume_from_checkpoint=None 从头训练；"auto"/True 自动从 output_dir
             中最新 checkpoint 续训；传入路径则从该 checkpoint 续训。
+            dataset="wikitext" 用 WikiText-103；dataset="custom" 用 dataset_source
+            指向的数据（本地文件 / HF Hub 名 / URL / dict）。
     """
     # 1) Config
     cfg = build_config(arch=arch, size=size, **overrides)
@@ -157,12 +181,36 @@ def run_training(
     cfg["vocab_size"] = len(tokenizer)  # ensure consistency
     logger.info(f"Loaded tokenizer: {tokenizer.__class__.__name__}, vocab={len(tokenizer)}")
 
-    datasets = load_wikitext_dataset(
-        tokenizer=tokenizer,
-        block_size=cfg["block_size"],
-        subset_size=subset_size,
-        num_proc=num_proc,
-    )
+    dataset_choice = (dataset or "wikitext").lower()
+    if dataset_choice == "wikitext":
+        logger.info("Dataset: WikiText-103 / 使用 WikiText-103")
+        datasets = load_wikitext_dataset(
+            tokenizer=tokenizer,
+            block_size=cfg["block_size"],
+            subset_size=subset_size,
+            num_proc=num_proc,
+        )
+    elif dataset_choice == "custom":
+        if not dataset_source:
+            raise ValueError(
+                "dataset='custom' requires `dataset_source` (a local file path, "
+                "HF Hub name, URL, or dict of Datasets). / "
+                "dataset='custom' 需要传入 dataset_source。"
+            )
+        logger.info(f"Dataset: custom ({dataset_source!r}) / 自定义数据集")
+        datasets = load_custom_dataset(
+            source=dataset_source,
+            tokenizer=tokenizer,
+            block_size=cfg["block_size"],
+            text_field=text_field,
+            subset_size=subset_size,
+            num_proc=num_proc,
+        )
+    else:
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. Use 'wikitext' or 'custom'. / "
+            f"未知 dataset {dataset!r}，请用 'wikitext' 或 'custom'。"
+        )
     logger.info(f"Train rows: {len(datasets['train'])}, "
                 f"val rows: {len(datasets['validation'])}, "
                 f"test rows: {len(datasets['test'])}")
@@ -290,6 +338,22 @@ def _parse_args():
                         "从 checkpoint 续训：'auto'/'true' 自动找 output_dir 中"
                         "最新的 checkpoint，或传入 checkpoint 目录路径。"
                         "默认 None（从头训练）。")
+    p.add_argument("--dataset", choices=["wikitext", "custom"], default="wikitext",
+                   help="Dataset to train on. 'wikitext' = WikiText-103 (default). "
+                        "'custom' = use --dataset_source. / "
+                        "训练数据集：'wikitext'=WikiText-103（默认），"
+                        "'custom'=用 --dataset_source 指定的数据。")
+    p.add_argument("--dataset_source", default=None,
+                   help="Custom dataset source (only used when --dataset=custom). "
+                        "Accepts: local file path (.txt/.json/.jsonl/.csv/.tsv), "
+                        "HuggingFace Hub dataset name (e.g. 'imdb', "
+                        "'roneneldan/TinyStories'), or URL to a .txt file. / "
+                        "自定义数据集来源（仅当 --dataset=custom 时生效）：本地文件路径、"
+                        "HF Hub 名、或 .txt 文件的 URL。")
+    p.add_argument("--text_field", default="text",
+                   help="Column name that holds the raw text in a custom dataset "
+                        "(default: 'text'). / "
+                        "自定义数据集中存放原始文本的列名（默认 'text'）。")
     return p.parse_args()
 
 
@@ -314,6 +378,9 @@ def main():
         fp16=not args.no_fp16,
         max_steps=args.max_steps,
         resume_from_checkpoint=args.resume_from_checkpoint,
+        dataset=args.dataset,
+        dataset_source=args.dataset_source,
+        text_field=args.text_field,
         **overrides,
     )
 

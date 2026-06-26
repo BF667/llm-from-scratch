@@ -14,7 +14,8 @@
 
 Selectable architecture (`gpt2` or `llama`) ·
 Selectable size (`tiny` / `0.1b` / `0.5b` / `1b` / `custom`) ·
-WikiText-103 · HuggingFace `transformers` + `Trainer`
+WikiText-103 or custom datasets · Continue training from checkpoints ·
+HuggingFace `transformers` + `Trainer`
 
 </div>
 

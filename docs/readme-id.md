@@ -35,6 +35,8 @@ atau gaya `llama`). Dibangun di atas HuggingFace `transformers` + `Trainer`.
   - **Gaya LLaMA**: RMSNorm + RoPE + SwiGLU, tanpa bias, embedding tidak di-tie
 - ✅ Lima preset ukuran: `tiny` (~16M), `0.1b` (~95M), `0.5b` (~500M), `1b` (~750M), `custom`
 - ✅ Dataset WikiText-103 + tokenizer GPT-2 BPE (vocab=50257)
+- ✅ **Dataset kustom** — file lokal `.txt` / `.json` / `.jsonl` / `.csv`, nama HF Hub, atau URL
+- ✅ **Lanjutkan training** dari checkpoint mana pun (`--resume_from_checkpoint auto`)
 - ✅ Loop training berbasis HF `Trainer` dengan LR cosine, warmup, mixed precision
 - ✅ Dukungan gradient checkpointing untuk GPU dengan VRAM terbatas
 - ✅ Notebook Colab sekali klik (`notebooks/train_llm_colab.ipynb`)
@@ -63,7 +65,7 @@ llm-from-scratch/
 │   ├── config.py                   # preset ukuran + pembuat konfigurasi
 │   ├── model_gpt2.py               # model gaya GPT-2
 │   ├── model_llama.py              # model gaya LLaMA
-│   ├── dataset.py                  # WikiText-103 + tokenizer
+│   ├── dataset.py                  # WikiText-103 + custom datasets + tokenizer
 │   ├── train.py                    # entry point training
 │   └── generate.py                 # skrip generasi
 └── notebooks/
@@ -168,6 +170,56 @@ Di notebook Colab, set `RESUME_FROM = "auto"` di bagian 8 sebagai gantinya.
 
 > ⚠️ Arsitektur & ukuran harus cocok dengan checkpoint — Anda tidak bisa
 > melanjutkan checkpoint `gpt2-tiny` dengan `--arch llama` atau `--size 0.1b`.
+
+### Dataset kustom 📚
+
+Tak mau pakai WikiText-103? Lempar `--dataset custom --dataset_source <sumber>`
+untuk training di korpus Anda sendiri. Sumber yang didukung:
+
+| Jenis sumber | Contoh |
+|--------------|--------|
+| File `.txt` lokal (satu dokumen per baris) | `--dataset_source /content/my_data.txt` |
+| File `.json` / `.jsonl` lokal (field `text` per record) | `--dataset_source /content/notes.jsonl` |
+| File `.csv` lokal (kolom `text`) | `--dataset_source /content/data.csv` |
+| Nama dataset HuggingFace Hub | `--dataset_source roneneldan/TinyStories` |
+| URL ke file `.txt` | `--dataset_source https://example.com/data.txt` |
+
+Bila kolom teks bukan `text`, pakai `--text_field <kolom>`
+(mis. `--text_field content`).
+
+```bash
+# Training di file .txt lokal
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-custom-data --epochs 1 \
+    --dataset custom --dataset_source /content/my_data.txt
+
+# Training di TinyStories dari HF Hub
+python -m llm_scratch.train --arch gpt2 --size 0.1b \
+    --output_dir out/gpt2-tinystories --epochs 1 \
+    --dataset custom --dataset_source roneneldan/TinyStories
+```
+
+Di notebook Colab, set `DATASET = "custom"` dan `DATASET_SOURCE = "..."` di
+bagian 4. Dataset file lokal tanpa split akan otomatis dipecah 90/5/5.
+
+### Memperbaiki error `Config() got an unexpected keyword argument 'deprecated'` 🔧
+
+Beberapa runtime Colab membawa `torch` yang internal `_dynamo/config.py`-nya
+tidak sinkron dengan `_utils/_config_typing.py`, sehingga `import torch`
+crash. **Bagian 0** notebook mendeteksi ini dan memasang ulang `torch` /
+`torchvision` / `torchaudio` untuk Anda — lalu restart runtime dan jalankan
+ulang.
+
+Setara di CLI:
+
+```bash
+pip install -U --force-reinstall torch torchvision torchaudio
+```
+
+Modul `llm_scratch.config` murni stdlib, jadi
+`from llm_scratch.config import build_config, list_presets` selalu jalan
+meski torch sendiri rusak (submodul yang bergantung pada torch dimuat
+lambat / lazy saat pertama diakses).
 
 ### Generasi
 

@@ -34,6 +34,8 @@ HuggingFace `transformers` + `Trainer`。
   - **LLaMA 风格**：RMSNorm + RoPE + SwiGLU，无 bias，解绑 embedding
 - ✅ 五种尺寸预设：`tiny` (~16M)、`0.1b` (~95M)、`0.5b` (~500M)、`1b` (~750M)、`custom`
 - ✅ WikiText-103 数据集 + GPT-2 BPE tokenizer（词表 50257）
+- ✅ **自定义数据集** —— 本地 `.txt` / `.json` / `.jsonl` / `.csv`、HF Hub 名、URL
+- ✅ **从 checkpoint 续训**（`--resume_from_checkpoint auto`）
 - ✅ 基于 HF `Trainer` 的训练循环，支持 cosine 学习率、warmup、混合精度
 - ✅ 梯度检查点支持，适配显存受限的 GPU
 - ✅ 一键 Colab 笔记本（`notebooks/train_llm_colab.ipynb`）
@@ -62,7 +64,7 @@ llm-from-scratch/
 │   ├── config.py                   # 尺寸预设与配置构建
 │   ├── model_gpt2.py               # GPT-2 风格模型
 │   ├── model_llama.py              # LLaMA 风格模型
-│   ├── dataset.py                  # WikiText-103 + tokenizer
+│   ├── dataset.py                  # WikiText-103 + custom datasets + tokenizer
 │   ├── train.py                    # 训练入口
 │   └── generate.py                 # 生成脚本
 └── notebooks/
@@ -163,6 +165,54 @@ python -m llm_scratch.train --arch gpt2 --size tiny \
 
 > ⚠️ 架构与尺寸必须与 checkpoint 一致 —— 不能用 `--arch llama` 或
 > `--size 0.1b` 去续训 `gpt2-tiny` 的 checkpoint。
+
+### 自定义数据集 📚
+
+不想用 WikiText-103？传 `--dataset custom --dataset_source <来源>` 即可在
+自己的语料上训练。支持的来源：
+
+| 来源类型 | 示例 |
+|----------|------|
+| 本地 `.txt` 文件（每行一个文档） | `--dataset_source /content/my_data.txt` |
+| 本地 `.json` / `.jsonl`（每条记录有 `text` 字段） | `--dataset_source /content/notes.jsonl` |
+| 本地 `.csv`（有 `text` 列） | `--dataset_source /content/data.csv` |
+| HuggingFace Hub 数据集名 | `--dataset_source roneneldan/TinyStories` |
+| 指向 `.txt` 文件的 URL | `--dataset_source https://example.com/data.txt` |
+
+若文本列不叫 `text`，用 `--text_field <列名>`（例如 `--text_field content`）。
+
+```bash
+# 在本地 .txt 文件上训练
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-custom-data --epochs 1 \
+    --dataset custom --dataset_source /content/my_data.txt
+
+# 在 HF Hub 的 TinyStories 上训练
+python -m llm_scratch.train --arch gpt2 --size 0.1b \
+    --output_dir out/gpt2-tinystories --epochs 1 \
+    --dataset custom --dataset_source roneneldan/TinyStories
+```
+
+在 Colab 笔记本中，于第 4 节设置 `DATASET = "custom"` 与
+`DATASET_SOURCE = "..."` 即可。本地文件数据若未提供 split，会自动按
+90/5/5 切分。
+
+### 修复 `Config() got an unexpected keyword argument 'deprecated'` 报错 🔧
+
+部分 Colab 运行时自带的 `torch` 内部 `_dynamo/config.py` 与
+`_utils/_config_typing.py` 版本不一致，导致 `import torch` 直接崩溃。
+笔记本 **第 0 节** 会检测该问题并自动重装 `torch` / `torchvision` /
+`torchaudio`，重装后重启运行时再重跑即可。
+
+命令行下等价做法：
+
+```bash
+pip install -U --force-reinstall torch torchvision torchaudio
+```
+
+包内 `llm_scratch.config` 模块为纯标准库实现，因此即使 torch 自身崩溃，
+`from llm_scratch.config import build_config, list_presets` 仍可正常工作
+（依赖 torch 的子模块改为懒加载）。
 
 ### 生成
 

@@ -35,6 +35,8 @@ HuggingFace `transformers` + `Trainer`.
   - **LLaMA style**: RMSNorm + RoPE + SwiGLU, no bias, untied embeddings
 - ✅ Five size presets: `tiny` (~16M), `0.1b` (~95M), `0.5b` (~500M), `1b` (~750M), `custom`
 - ✅ WikiText-103 dataset, GPT-2 BPE tokenizer (vocab=50257)
+- ✅ **Custom datasets** — local `.txt` / `.json` / `.jsonl` / `.csv`, HF Hub names, or URLs
+- ✅ **Continue training** from any checkpoint (`--resume_from_checkpoint auto`)
 - ✅ HF `Trainer`-based training loop with cosine LR schedule, warmup, mixed precision
 - ✅ Gradient checkpointing support for memory-constrained GPUs
 - ✅ One-click Colab notebook (`notebooks/train_llm_colab.ipynb`)
@@ -63,7 +65,7 @@ llm-from-scratch/
 │   ├── config.py                   # size presets + config builder
 │   ├── model_gpt2.py               # GPT-2 style model
 │   ├── model_llama.py              # LLaMA style model
-│   ├── dataset.py                  # WikiText-103 + tokenizer
+│   ├── dataset.py                  # WikiText-103 + custom datasets + tokenizer
 │   ├── train.py                    # training entry
 │   └── generate.py                 # generation script
 └── notebooks/
@@ -168,6 +170,55 @@ In the Colab notebook, set `RESUME_FROM = "auto"` in section 8 instead.
 
 > ⚠️ Architecture & size must match the checkpoint — you can't resume a
 > `gpt2-tiny` checkpoint with `--arch llama` or `--size 0.1b`.
+
+### Custom datasets 📚
+
+Don't want WikiText-103? Pass `--dataset custom --dataset_source <source>` to
+train on your own corpus. Supported sources:
+
+| Source type | Example |
+|-------------|---------|
+| Local `.txt` file (one doc per line) | `--dataset_source /content/my_data.txt` |
+| Local `.json` / `.jsonl` (a `text` field per record) | `--dataset_source /content/notes.jsonl` |
+| Local `.csv` (a `text` column) | `--dataset_source /content/data.csv` |
+| HuggingFace Hub dataset name | `--dataset_source roneneldan/TinyStories` |
+| URL to a `.txt` file | `--dataset_source https://example.com/data.txt` |
+
+For datasets whose text column isn't named `text`, set `--text_field <col>`
+(e.g. `--text_field content`).
+
+```bash
+# Train on a local .txt file
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-custom-data --epochs 1 \
+    --dataset custom --dataset_source /content/my_data.txt
+
+# Train on TinyStories from the HF Hub
+python -m llm_scratch.train --arch gpt2 --size 0.1b \
+    --output_dir out/gpt2-tinystories --epochs 1 \
+    --dataset custom --dataset_source roneneldan/TinyStories
+```
+
+In the Colab notebook, set `DATASET = "custom"` and `DATASET_SOURCE = "..."` in
+section 4. Local-file datasets are auto-split 90/5/5 if no split is provided.
+
+### Fixing the `Config() got an unexpected keyword argument 'deprecated'` error 🔧
+
+Some Colab runtimes ship a `torch` whose internal `_dynamo/config.py` is out of
+sync with `_utils/_config_typing.py`, causing `import torch` to crash. The
+notebook's **section 0** detects this and re-installs `torch` /
+`torchvision` / `torchaudio` for you — then restart the runtime and re-run.
+
+Equivalently on the CLI:
+
+```bash
+pip install -U --force-reinstall torch torchvision torchaudio
+```
+
+The package's `llm_scratch.config` module is pure stdlib, so
+`from llm_scratch.config import build_config, list_presets` always works even
+when torch itself is broken (the heavy `torch`-dependent submodules are loaded
+lazily on first access).
 
 ### Generate
 
