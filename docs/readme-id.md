@@ -1,4 +1,20 @@
+<div align="center">
+
 # 🚀 llm-from-scratch · Latih LLM dari nol
+
+**Latih LLM decoder-only berukuran kecil dari nol — berjalan di Google Colab**
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BF667/llm-from-scratch/blob/main/notebooks/train_llm_colab.ipynb)
+&nbsp;&nbsp;
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+&nbsp;&nbsp;
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+&nbsp;&nbsp;
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-orange.svg)](https://pytorch.org/)
+
+</div>
+
+---
 
 [English](./readme-en.md) | [简体中文](./readme-zh.md) | [Bahasa Indonesia](./readme-id.md)
 

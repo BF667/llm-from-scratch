@@ -1,10 +1,22 @@
+<div align="center">
+
 # 🚀 llm-from-scratch
 
-A simple, **Google-Colab-ready** project to train a small decoder-only LLM
-**from scratch** on **WikiText-103**, with selectable architecture
-(`gpt2` or `llama`) and selectable size (`tiny` / `0.1b` / `0.5b` / `1b` / `custom`).
+**Train a small decoder-only LLM from scratch — runs on Google Colab**
 
-Built on HuggingFace `transformers` + `Trainer`.
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BF667/llm-from-scratch/blob/main/notebooks/train_llm_colab.ipynb)
+&nbsp;&nbsp;
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+&nbsp;&nbsp;
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+&nbsp;&nbsp;
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-orange.svg)](https://pytorch.org/)
+
+Selectable architecture (`gpt2` or `llama`) ·
+Selectable size (`tiny` / `0.1b` / `0.5b` / `1b` / `custom`) ·
+WikiText-103 · HuggingFace `transformers` + `Trainer`
+
+</div>
 
 ---
 
@@ -20,7 +32,7 @@ Built on HuggingFace `transformers` + `Trainer`.
 
 ## ⚡ Quick links
 
-- 📓 Colab notebook: [`notebooks/train_llm_colab.ipynb`](./notebooks/train_llm_colab.ipynb)
+- 📓 **Colab notebook** — click the badge above, or open [`notebooks/train_llm_colab.ipynb`](./notebooks/train_llm_colab.ipynb) directly
 - 🧠 GPT-2 model: [`llm_scratch/model_gpt2.py`](./llm_scratch/model_gpt2.py)
 - 🦙 LLaMA model: [`llm_scratch/model_llama.py`](./llm_scratch/model_llama.py)
 - ⚙️ Training entry: [`llm_scratch/train.py`](./llm_scratch/train.py)
