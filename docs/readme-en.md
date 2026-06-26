@@ -145,6 +145,30 @@ python -m llm_scratch.train --arch gpt2 --size custom \
 python -m llm_scratch.train --arch gpt2 --size tiny --no_fp16
 ```
 
+### Continue training from a checkpoint 🔄
+
+Set `--resume_from_checkpoint` to keep training from where the previous run
+stopped. HF `Trainer` restores model weights, optimizer state, LR scheduler,
+RNG, and the global step counter — the loss picks up where it left off
+instead of jumping back to ~10.
+
+```bash
+# Auto-pick the latest checkpoint in out/gpt2-tiny and continue for 2 more epochs
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-tiny --epochs 2 \
+    --resume_from_checkpoint auto
+
+# Resume from a specific checkpoint directory
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-tiny --epochs 2 \
+    --resume_from_checkpoint out/gpt2-tiny/checkpoint-500
+```
+
+In the Colab notebook, set `RESUME_FROM = "auto"` in section 8 instead.
+
+> ⚠️ Architecture & size must match the checkpoint — you can't resume a
+> `gpt2-tiny` checkpoint with `--arch llama` or `--size 0.1b`.
+
 ### Generate
 
 ```bash

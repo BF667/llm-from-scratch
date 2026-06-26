@@ -65,6 +65,21 @@ def build_model_from_config(cfg: dict):
 
 
 # ---------------------------------------------------------------------------
+# Checkpoint helpers
+# ---------------------------------------------------------------------------
+def _has_checkpoint(output_dir: str) -> bool:
+    """Return True if `output_dir` contains at least one HF checkpoint subdir
+    (i.e. a dir matching `checkpoint-<step>`).
+    判断 output_dir 中是否存在至少一个 HF checkpoint 子目录（形如 `checkpoint-<step>`）。
+    """
+    import os, re
+    if not os.path.isdir(output_dir):
+        return False
+    pat = re.compile(r"^checkpoint-\d+$")
+    return any(pat.match(d) for d in os.listdir(output_dir))
+
+
+# ---------------------------------------------------------------------------
 # Main training routine
 # ---------------------------------------------------------------------------
 def run_training(
@@ -83,11 +98,25 @@ def run_training(
     log_steps: int = 20,
     max_steps: Optional[int] = None,
     num_proc: Optional[int] = None,
+    resume_from_checkpoint: Optional[str] = None,
     **overrides,
 ) -> str:
     """Run end-to-end training. Returns the output_dir.
 
-    在 WikiText-103 上训练所选架构 + 尺寸的模型，返回输出目录。
+    Train the selected arch + size on WikiText-103. Returns the output dir.
+
+    Args:
+        resume_from_checkpoint:
+            - None  → train from scratch (random init).
+            - "auto" or True → auto-detect the latest checkpoint inside
+              `output_dir` and resume from it (optimizer state, LR schedule,
+              step counter, RNG all restored). If no checkpoint exists, falls
+              back to from-scratch training with a warning.
+            - a path → resume from that specific checkpoint directory.
+
+            在 WikiText-103 上训练所选架构 + 尺寸的模型，返回输出目录。
+            resume_from_checkpoint=None 从头训练；"auto"/True 自动从 output_dir
+            中最新 checkpoint 续训；传入路径则从该 checkpoint 续训。
     """
     # 1) Config
     cfg = build_config(arch=arch, size=size, **overrides)
@@ -98,6 +127,15 @@ def run_training(
     lr = lr if lr is not None else t["lr"]
     warmup_ratio = t["warmup_ratio"]
 
+    # Normalize resume_from_checkpoint: "auto"/True → "auto" for HF Trainer.
+    # HF Trainer accepts True (= auto-find latest in output_dir) or a path str.
+    resume_arg: Optional[str] = None
+    if resume_from_checkpoint in ("auto", True, "true", "True"):
+        resume_arg = True
+    elif isinstance(resume_from_checkpoint, str) and resume_from_checkpoint.lower() not in ("none", ""):
+        resume_arg = resume_from_checkpoint
+    # else None → train from scratch
+
     n_params = estimate_params(cfg)
     logger.info("=" * 60)
     logger.info(f"Arch:  {arch}")
@@ -105,6 +143,13 @@ def run_training(
     logger.info(f"Config: {cfg}")
     logger.info(f"Training: epochs={epochs} bs={batch_size} "
                 f"accum={grad_accum} lr={lr} fp16={fp16}")
+    if resume_arg is None:
+        logger.info("Mode: train from scratch / 从头训练")
+    elif resume_arg is True:
+        logger.info(f"Mode: auto-resume from latest checkpoint in {output_dir} / "
+                    f"自动从 {output_dir} 中最新 checkpoint 续训")
+    else:
+        logger.info(f"Mode: resume from {resume_arg} / 从 {resume_arg} 续训")
     logger.info("=" * 60)
 
     # 2) Tokenizer + dataset
@@ -166,8 +211,22 @@ def run_training(
         tokenizer=tokenizer,
     )
 
-    # 6) Train
-    train_result = trainer.train()
+    # 6) Train (optionally resume from a checkpoint)
+    #    HF Trainer restores optimizer state, LR scheduler, RNG, and the global
+    #    step counter when resume_from_checkpoint is set. The model weights are
+    #    also reloaded from the checkpoint, so `model` constructed above is
+    #    effectively overwritten at train start.
+    #    HF Trainer 会从 checkpoint 恢复优化器状态、学习率调度、随机数状态与全局步数；
+    #    模型权重也会从 checkpoint 重新加载，因此上面构建的 model 会被覆盖。
+    if resume_arg is True and not _has_checkpoint(output_dir):
+        logger.warning(
+            f"--resume_from_checkpoint=auto but no checkpoint found in "
+            f"{output_dir!r}. Falling back to from-scratch training. / "
+            f"未在 {output_dir!r} 中找到 checkpoint，回退为从头训练。"
+        )
+        resume_arg = None
+
+    train_result = trainer.train(resume_from_checkpoint=resume_arg)
     metrics = train_result.metrics
     trainer.log_metrics("train", metrics)
     trainer.save_metrics("train", metrics)
@@ -223,6 +282,14 @@ def _parse_args():
                    help="Override n_embd / 覆盖嵌入维度")
     p.add_argument("--block_size", type=int, default=None,
                    help="Override block_size / 覆盖上下文长度")
+    p.add_argument("--resume_from_checkpoint", default=None,
+                   help="Continue training from a checkpoint. Use 'auto' or "
+                        "'true' to auto-pick the latest checkpoint in "
+                        "--output_dir, or pass an explicit checkpoint dir path. "
+                        "Default: None (train from scratch). / "
+                        "从 checkpoint 续训：'auto'/'true' 自动找 output_dir 中"
+                        "最新的 checkpoint，或传入 checkpoint 目录路径。"
+                        "默认 None（从头训练）。")
     return p.parse_args()
 
 
@@ -246,6 +313,7 @@ def main():
         grad_checkpoint=args.grad_checkpoint,
         fp16=not args.no_fp16,
         max_steps=args.max_steps,
+        resume_from_checkpoint=args.resume_from_checkpoint,
         **overrides,
     )
 

@@ -141,6 +141,29 @@ python -m llm_scratch.train --arch gpt2 --size custom \
 python -m llm_scratch.train --arch gpt2 --size tiny --no_fp16
 ```
 
+### 从 checkpoint 续训 🔄
+
+设置 `--resume_from_checkpoint` 即可从上次停止的位置继续训练。HF `Trainer`
+会恢复模型权重、优化器状态、学习率调度、随机数状态与全局步数 —— loss 从上次
+的位置继续下降，而不是跳回 ~10。
+
+```bash
+# 自动找 out/gpt2-tiny 中最新 checkpoint，再训 2 轮
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-tiny --epochs 2 \
+    --resume_from_checkpoint auto
+
+# 从指定 checkpoint 目录续训
+python -m llm_scratch.train --arch gpt2 --size tiny \
+    --output_dir out/gpt2-tiny --epochs 2 \
+    --resume_from_checkpoint out/gpt2-tiny/checkpoint-500
+```
+
+在 Colab 笔记本中，改为在第 8 节设置 `RESUME_FROM = "auto"` 即可。
+
+> ⚠️ 架构与尺寸必须与 checkpoint 一致 —— 不能用 `--arch llama` 或
+> `--size 0.1b` 去续训 `gpt2-tiny` 的 checkpoint。
+
 ### 生成
 
 ```bash
