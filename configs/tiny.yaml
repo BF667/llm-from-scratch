@@ -1,0 +1,15 @@
+# Tiny (~10M params) — smoke test size, runs on Colab free T4 in minutes.
+# 极小（约 10M 参数）—— 冒烟测试尺寸，Colab 免费版 T4 数分钟可完成。
+arch: gpt2
+size: tiny
+model:
+  n_layer: 4
+  n_head: 4
+  n_embd: 256
+  block_size: 256
+training:
+  batch_size: 32
+  grad_accum: 1
+  lr: 3.0e-4
+  epochs: 1
+  warmup_ratio: 0.05

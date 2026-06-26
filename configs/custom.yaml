@@ -1,0 +1,15 @@
+# Custom — override any field below to define your own size.
+# 自定义 —— 修改下面的任意字段来定义你自己的尺寸。
+arch: gpt2          # gpt2 | llama
+size: custom
+model:
+  n_layer: 6          # number of transformer blocks / 层数
+  n_head: 6            # attention heads / 注意力头数
+  n_embd: 384          # embedding dim (must be divisible by n_head) / 嵌入维度
+  block_size: 512      # context length / 上下文长度
+training:
+  batch_size: 16
+  grad_accum: 2
+  lr: 3.0e-4
+  epochs: 1
+  warmup_ratio: 0.05

@@ -1,0 +1,16 @@
+# ~500M params — needs Colab Pro / A100.
+# 约 500M 参数 —— 需要 Colab Pro / A100。
+arch: gpt2
+size: 0.5b
+model:
+  n_layer: 24
+  n_head: 16
+  n_embd: 1280
+  block_size: 1024
+training:
+  batch_size: 4
+  grad_accum: 8
+  lr: 3.0e-4
+  epochs: 1
+  warmup_ratio: 0.05
+grad_checkpoint: true

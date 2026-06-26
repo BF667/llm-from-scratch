@@ -1,0 +1,13 @@
+# Core training stack — pin reasonably recent versions that work on Colab.
+# 核心训练依赖 —— 锁定在 Colab 上验证可用的近期版本。
+torch>=2.1.0
+transformers>=4.40.0
+datasets>=2.14.0
+accelerate>=0.27.0
+tokenizers>=0.15.0
+numpy>=1.23.0
+tqdm>=4.65.0
+
+# Optional: logging dashboard
+# tensorboard>=2.13.0
+# wandb>=0.15.0

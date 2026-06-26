@@ -1,0 +1,15 @@
+# ~100M params — small but coherent on WikiText.
+# 约 100M 参数 —— 在 WikiText 上可产生连贯文本。
+arch: gpt2
+size: 0.1b
+model:
+  n_layer: 8
+  n_head: 12
+  n_embd: 768
+  block_size: 512
+training:
+  batch_size: 12
+  grad_accum: 2
+  lr: 3.0e-4
+  epochs: 1
+  warmup_ratio: 0.05

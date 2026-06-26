@@ -1,0 +1,16 @@
+# ~1B params — demo only on Colab, enable gradient checkpointing.
+# 约 1B 参数 —— Colab 上仅供演示，必须开启梯度检查点。
+arch: gpt2
+size: 1b
+model:
+  n_layer: 24
+  n_head: 16
+  n_embd: 1536
+  block_size: 1024
+training:
+  batch_size: 2
+  grad_accum: 16
+  lr: 3.0e-4
+  epochs: 1
+  warmup_ratio: 0.05
+grad_checkpoint: true
